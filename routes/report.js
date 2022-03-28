@@ -196,6 +196,34 @@ router.get('/getReportgraphs',  async (req, res) => {
 })
 
 
+router.get('/employeeGraph',  async (req, res) => {
+    try{
+        let option = null
+        let query = {}
+        if(req.query.emailAddress  == 'true') {
+            option = `$${['Email Address']}`
+        }
+        if (req.query.startDate && req.query.endDate && !isNaN(new Date(req.query.startDate)) && !isNaN(new Date(req.query.endDate))) {
+            startDate = new Date(req.query.startDate);
+            endDate = new Date(req.query.endDate);
+            query["Timestamp"] = {$gte: startDate, $lte: endDate};
+        }
+        console.log(query)
+        MongoClient.connect(url, async function(err, db) {
+            if (err) throw err;
+            var dbo = db.db("Reports");
+            let data = await dbo.collection("reports").aggregate([
+                {$match: query},
+                {$group: {_id:option, count: {$sum: 1}}},
+            ]).toArray()
+            return res.send(data)
+        });
+    }catch(e)  {
+        return res.send(JSON.stringify(e))
+    }
+})
+
+
 router.post('/addReport', async function (req, res) {
     try{
         MongoClient.connect(url, async function(err, db) {
