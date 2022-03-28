@@ -30,7 +30,7 @@ router.get('/addReportsListData', async function (req, res) {
             query = {...query, ['Rel Exp']: {$gte: parseInt(req.query.experienceRel)}}
         }
         if(req.query.experienceTotal) {
-            query = {...query, ['Total Exp']: {$regex: req.query.experienceTotal, $options:'i'}}
+            query = {...query, ['Rel Exp']: {$gte: parseInt(req.query.experienceTotal)}}
         }
         if(req.query.noticePeriod) {
             query = {...query, ['Notice Period']: {$regex: req.query.noticePeriod, $options:'i'}}
@@ -47,12 +47,13 @@ router.get('/addReportsListData', async function (req, res) {
             query["Timestamp"] = {$gte: startDate, $lte: endDate};
         }
 
+        console.log(query);
         let page = req.query.page
         MongoClient.connect(url, async function(err, db) {
             if (err) throw err;
             var dbo = db.db("Reports");
             let totalCounts = await dbo.collection("reports").find(query).count()
-            let data = await dbo.collection("reports").find(query).limit(20).skip(page*20).toArray()
+            let data = await dbo.collection("reports").find(query).limit(20).skip(page*20).sort({"Timestamp": -1}).toArray()
             res.json({result:data,totalCounts})
           });
     }catch(e)  {
@@ -216,119 +217,25 @@ router.get('/updateTime', async function (req, res) {
         MongoClient.connect(url, async function(err, db) {
             if (err) throw err;
             var dbo = db.db("Reports");
-            await dbo.collection("onboardDetails").insertMany(
-               [
-                        {
-                            "Candidate name": "Sathish Bandi",
-                            "Contact No": "9573265650",
-                            "Skill Set": "angular",
-                            "RGS ID": "7948982",
-                            "Tentative DOJ": new Date("12/1/2021"),
-                            "Current Status": "On-boarded",
-                            "EMP ID": "2254324",
-                            "DOJ": 44559,
-                            "Date of source": 44522,
-                            "Date of selection": new Date("11/25/2021"),
-                            "RMG": "Venudeepthi",
-                            "TCS Account/ISU": "CPG",
-                            "RMG Location": "Hyderabad",
-                            "Requirement Email from GENERAL/Known Manager": "Known Manager",
-                            "TCS RATE CARD": "85000",
-                            "Pay RATE": "108333",
-                            "TCS APPROVED RATE CARD": "135000",
-                            "Margin": "26667",
-                            "BGC Cleared Date": 44558,
-                            "BGC SPOC": "AppaRao-TCS",
-                            "Location of On-board": "Hyderabad",
-                            "Recruiter  name": "Niranjan",
-                            "Team Lead  name": "Kiran",
-                            "TOI-Spoc": "Kiran"
-                        },
-                        {
-                            "Candidate name": "Sumit Choudhary",
-                            "Contact No": "8285575703",
-                            "Skill Set": "sap",
-                            "RGS ID": "7696171",
-                            "Tentative DOJ": new Date("20/1/2022"),
-                            "Current Status": "Dropped-FTE Offer In-Hand",
-                            "EMP ID": "NA",
-                            "DOJ": "NA",
-                            "Date of source": 44524,
-                            "Date of selection": new Date("11/26/2021"),
-                            "RMG": "Mahima",
-                            "RMG Location": "Chennai",
-                            "Requirement Email from GENERAL/Known Manager": "General",
-                            "TCS RATE CARD": " ",
-                            "Pay RATE": " ",
-                            "TCS APPROVED RATE CARD": " ",
-                            "Margin": " ",
-                            "BGC Cleared Date": " ",
-                            "BGC SPOC": " ",
-                            "Location of On-board": " ",
-                            "Recruiter  name": " gababu",
-                            "Team Lead  name": "Kiran",
-                            "TOI-Spoc": "Kiran"
-                        },
-                        {
-                            "Candidate name": "Prasan  kumar Yeduru",
-                            "Contact No": "7416136795",
-                            "Skill Set": "react",
-                            "RGS ID": "7263898",
-                            "Tentative DOJ": new Date("13/1/2022"),
-                            "Current Status": "Dropped-Medical Issue",
-                            "EMP ID": "NA",
-                            "DOJ": "NA",
-                            "Date of source": 44529,
-                            "Date of selection": new Date("1/12/2021"),
-                            "RMG": "Madhurima",
-                            "TCS Account/ISU": "A&I - Business A lyti",
-                            "RMG Location": "Bangalore",
-                            "Requirement Email from GENERAL/Known Manager": "General",
-                            "TCS RATE CARD": " ",
-                            "Pay RATE": " ",
-                            "TCS APPROVED RATE CARD": " ",
-                            "Margin": " ",
-                            "BGC Cleared Date": " ",
-                            "BGC SPOC": " ",
-                            "Location of On-board": " ",
-                            "Recruiter  name": "Niranjan",
-                            "Team Lead  name": "Kiran",
-                            "TOI-Spoc": "Kiran"
-                        },
-                        {
-                            "Candidate name": "Priyanka S",
-                            "Contact No": "8096792431",
-                            "Skill Set": "Java",
-                            "RGS ID": "7976786",
-                            "Tentative DOJ": new Date("12/2/2021"),
-                            "Current Status": "On-boarded",
-                            "EMP ID": "2280638",
-                            "DOJ": 44585,
-                            "Date of source": 44544,
-                            "Date of selection": new Date("8/12/2021"),
-                            "RMG": "Sakthi balan",
-                            "TCS Account/ISU": "MFG",
-                            "RMG Location": "Chennai",
-                            "Requirement Email from GENERAL/Known Manager": "General",
-                            "TCS RATE CARD": "75000",
-                            "Pay RATE": "37500",
-                            "TCS APPROVED RATE CARD": "75000",
-                            "Margin": "37500",
-                            "BGC Cleared Date": 44558,
-                            "BGC SPOC": " resh-TCS",
-                            "Location of On-board": "Chennai",
-                            "Recruiter  name": " vyaSri",
-                            "Team Lead  name": "Niranjan",
-                            "TOI-Spoc": "Kiran"
-                        }
-                    ]
-            ,
-            (result) => {
-                res.send(result);
-            }
-            )
+            await dbo.collection("reports").find({}).toArray((err,result) => {
+                if (err) throw err;
+                let i = 0;
+                // For Date Update
+                // result.map(async (item) => {
+                //     await dbo.collection("reports").updateOne({"_id":ObjectID(item._id)}, {$set: {"Timestamp": new Date(item.Timestamp)}})
+                //     i += 1
+                //     console.log(item._id)
+                //     console.log(i)
+                // })
+                // For Int Parse
+                // result.map(async (item) => {
+                //     await dbo.collection("reports").updateOne({"_id":ObjectID(item._id)}, {$set: {["Rel Exp"]: parseInt(item["Rel Exp"])}})
+                //     i += 1
+                //     console.log(item._id)
+                //     console.log(i)
+                // })
+            })
         });
-        
     }catch(e)  {
         return res.send(JSON.stringify(e))
     }
