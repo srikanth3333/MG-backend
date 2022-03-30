@@ -87,7 +87,7 @@ router.get('/groupList', async function (req, res) {
         }
 
         if (req.query.startDate) {
-            query = {...query, ['Timestamp']: {$gt : req.query.startDate}}
+            query = {...query, ['Timestamp']: {$gte : req.query.startDate}}
         }
 
         if (req.query.contactNo) {
@@ -257,12 +257,14 @@ router.get('/updateTime', async function (req, res) {
                 // })
                 // For Int Parse
                 // result.map(async (item) => {
-                //     await dbo.collection("reports").updateOne({"_id":ObjectID(item._id)}, {$set: {["Rel Exp"]: parseInt(item["Rel Exp"])}})
+                //     await dbo.collection("reports").updateOne({"_id":ObjectID(item._id)}, {$set: {["Total Exp"]: parseInt(item["Total Exp"])}})
                 //     i += 1
                 //     console.log(item._id)
                 //     console.log(i)
                 // })
+
             })
+           
         });
     }catch(e)  {
         return res.send(JSON.stringify(e))
@@ -290,6 +292,9 @@ router.get('/getOnboardDetails',  async (req, res) => {
         if(req.query.rgsId) {
             query = {...query, ['RGS ID']: {$regex: req.query.rgsId, $options:'i'}}
         }
+        if(req.query.currentStatus) {
+            query = {...query, ['Current Status']: {$regex: req.query.currentStatus, $options:'i'}} 
+        }
         if(req.query.tentativeDOJ) {
             query = {...query, ['Tentative DOJ']: parseInt(req.query.tentativeDOJ)}
         }
@@ -307,8 +312,10 @@ router.get('/getOnboardDetails',  async (req, res) => {
         if (req.query.startDate && req.query.endDate && !isNaN(new Date(req.query.startDate)) && !isNaN(new Date(req.query.endDate))) {
             startDate = new Date(req.query.startDate);
             endDate = new Date(req.query.endDate);
-            query["Tentative DOJ"] = {$gt: startDate, $lt: endDate};
+            query["Tentative DOJ"] = {$gte: startDate, $lte: endDate};
         }
+
+        console.log(query)
 
         MongoClient.connect(url, async function(err, db) {
             if (err) throw err;
