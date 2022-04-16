@@ -4,6 +4,8 @@ const Report = require('../models/Report')
 const router = express.Router();
 const multer  = require('multer')
 var ObjectID = require('mongodb').ObjectID;
+const sgMail = require('@sendgrid/mail')
+sgMail.setApiKey("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")
 
 var MongoClient = require('mongodb').MongoClient;
 const url = "mongodb+srv://srikanth:zxcvbnm321A@cluster0.kvdaf.mongodb.net/Reports?retryWrites=true&w=majority"
@@ -229,7 +231,31 @@ router.post('/addReport', async function (req, res) {
         MongoClient.connect(url, async function(err, db) {
             if (err) throw err;
             var dbo = db.db("Reports");
-            let data = await dbo.collection("reports").insertOne(req.body)
+            await dbo.collection("reports").insertOne({
+                "Timestamp" : new Date(req.body.Timestamp),
+                "Email Address" : req.body['Email Address'],
+                "Vendor Name" : req.body['Vendor Name'],
+                "Candiate Name" : req.body['Candiate Name'],
+                "Pan/Aadhar No" : req.body['Vendor Name'],
+                "Contact No." : req.body['Pan/Aadhar No'],
+                "Skill Set" : req.body['Skill Set'],
+                "Total Exp" : req.body['Total Exp'],
+                "Rel Exp" : req.body['Rel Exp'],
+                "Current Company" : req.body['Current Company'],
+                "Current Work Location" : req.body['Current Work Location'],
+                "Preferred Work Location" : req.body['Preferred Work Location'],
+                "Email ID" : req.body['Email ID'],
+                "Notice Period" : req.body['Notice Period'],
+                "GAP (If Any)" : req.body['GAP (If Any)'],
+                "Telephonic Round -Date" : new Date(req.body['Telephonic Round -Date']),
+                "Telephonic Round -Time" : new Date(req.body['Telephonic Round -Time']),
+                "Category" : req.body['Category'],
+                "Bill RATE" : req.body['Bill RATE'],
+                "Resume" : req.body['Resume'],
+                "RMG SPOC NAME" : req.body['RMG SPOC NAME'],
+                "RMG Email ID" : req.body['RMG Email ID'],
+                "For the Date of submission" : new Date(req.body['For the Date of submission'])
+            })
             return res.send({status:true,msg:'success'})
         });
         
@@ -373,6 +399,103 @@ router.get('/getOnboardOptions',  async (req, res) => {
         return res.send(JSON.stringify(e))
     }
 })
+
+const sendMail = (email,res,otp) => {
+    const msg = {
+        to: email,
+        from: 'srikanth.s@mind-graph.com', 
+        subject: 'OTP',
+        text: `your otp is ${otp}`,
+        // html: '<strong>and easy to do anywhere, even with Node.js</strong>',
+      }
+      sgMail
+        .send(msg)
+        .then(() => {
+            return res.json({status:true,msg:"Email sent"})
+        })
+        .catch((error) => {
+            return res.json({status:false,msg:"Something went wrong try again later"})
+        })
+}
+
+router.get("/userLogin", async (req, res) => {
+    try{
+        MongoClient.connect(url, async function(err, db) {
+            if (err) throw err;
+            var dbo = db.db("Reports");
+            let data = await dbo.collection("reports").findOne({['Email Address']:req.query.email})
+            if(!data) {
+                return res.json({status:false,msg:"Not a regitered user"})
+            }
+            let otp = Math.floor(Math.random() * (999999 - 100000 + 1)) + 100000;
+            await dbo.collection("reports").updateOne({['Email Address']:req.query.email},{$set:{otp:otp}},{upsert:true})
+            .then((result) => {
+                // res.send(result)
+                sendMail(req.query.email,res,otp)    
+            })
+            .catch(err => res.json({status:false,msg:err}))
+            
+        });
+    }catch(e){
+        return res.send(JSON.stringify(e))
+    }
+})
+
+
+router.get('/verifyOtp', async (req, res) => {
+    Promise.resolve().then(async ()=> {
+        let email = req.query.email
+        let otp = req.query.otp
+        MongoClient.connect(url, async function(err, db) {
+            if (err) throw err;
+            var dbo = db.db("Reports");
+            let user = await dbo.collection("reports").findOne({['Email Address']:email})
+            if(!user) {
+                return res.json({status:false,msg:"Not a regitered user"})
+            }
+            if(user.otp == otp) {
+                return res.json({status:true,msg:'success'})
+            }else {
+                return res.json({status:false,msg:'Wrong otp please try again with correct otp'})
+            }
+            
+        });
+    }).catch(err => {
+        console.log(err);
+        res.status(500).json({
+            message: "Failed",
+            error: JSON.stringify(err)
+        });
+    });
+})
+
+router.get('/verifyUser', async (req, res) => {
+    Promise.resolve().then(async ()=> {
+        let email = req.query.email
+        MongoClient.connect(url, async function(err, db) {
+            if (err) throw err;
+            var dbo = db.db("Reports");
+            let user = await dbo.collection("reports").findOne({['Email Address']:email})
+            if(!user) {
+                return res.json({status:false,msg:"Not a regitered user"})
+            }
+            return res.json({status:true,msg:'success'})
+        });
+    }).catch(err => {
+        console.log(err);
+        res.status(500).json({
+            message: "Failed",
+            error: JSON.stringify(err)
+        });
+    });
+})
+
+// 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
+
+
+
+
+
 
 
 module.exports = router;
