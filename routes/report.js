@@ -55,7 +55,7 @@ router.get('/addReportsListData', async function (req, res) {
             if (err) throw err;
             var dbo = db.db("Reports");
             let totalCounts = await dbo.collection("reports").find(query).count()
-            let data = await dbo.collection("reports").find(query).limit(20).skip(page*20).sort({"Timestamp": -1}).toArray()
+            let data = await dbo.collection("reports").find(query).limit(20).skip(page*20).sort({"Timestamp": 1}).toArray()
             res.json({result:data,totalCounts})
           });
     }catch(e)  {
@@ -271,19 +271,26 @@ router.get('/updateTime', async function (req, res) {
         MongoClient.connect(url, async function(err, db) {
             if (err) throw err;
             var dbo = db.db("Reports");
-            await dbo.collection("reports").find({}).toArray((err,result) => {
+            await dbo.collection("onboardDetails").find({}).toArray((err,result) => {
                 if (err) throw err;
                 let i = 0;
                 // For Date Update
-                // result.map(async (item) => {
-                //     await dbo.collection("reports").updateOne({"_id":ObjectID(item._id)}, {$set: {"Timestamp": new Date(item.Timestamp)}})
-                //     i += 1
-                //     console.log(item._id)
-                //     console.log(i)
-                // })
+                result.map(async (item) => {
+                    // console.log(item)
+                    // if(!item["Tentative DOJ"]) {
+                    //     await dbo.collection("onboardDetails").updateOne({"_id":ObjectID(item._id)}, {$set: {["Tentative DOJ"]:''}})
+                    //     // res.send(item)
+                    // }else {
+                    //     await dbo.collection("onboardDetails").updateOne({"_id":ObjectID(item._id)}, {$set: {["Tentative DOJ"]: new Date(item["Tentative DOJ"])}})
+                    //     i += 1
+                    //     console.log(item._id)
+                    //     console.log(i)    
+                    // }
+                    
+                })
                 // For Int Parse
                 // result.map(async (item) => {
-                //     await dbo.collection("reports").updateOne({"_id":ObjectID(item._id)}, {$set: {["Total Exp"]: parseInt(item["Total Exp"])}})
+                //     await dbo.collection("onboardDetails").updateOne({"_id":ObjectID(item._id)}, {$set: {["Total Exp"]: parseInt(item["Total Exp"])}})
                 //     i += 1
                 //     console.log(item._id)
                 //     console.log(i)
@@ -347,7 +354,7 @@ router.get('/getOnboardDetails',  async (req, res) => {
             if (err) throw err;
             var dbo = db.db("Reports");
             let totalCounts = await dbo.collection("onboardDetails").find(query).count()
-            let result = await dbo.collection("onboardDetails").find(query).limit(20).skip(page*20).toArray()
+            let result = await dbo.collection("onboardDetails").find(query).limit(20).skip(page*20).sort({["Tentative DOJ"]:1}).toArray()
             return res.send({result,totalCounts})
         })
     }catch(e)  {
