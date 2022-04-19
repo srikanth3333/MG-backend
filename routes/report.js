@@ -49,6 +49,10 @@ router.get('/addReportsListData', async function (req, res) {
             query["Timestamp"] = {$gte: startDate, $lte: endDate};
         }
 
+        if(parseInt(req.query.experienceTotal) < parseInt(req.query.experienceRel)) {
+                return res.json({status:false,msg:"Total"})
+        }
+
         console.log(query);
         let page = req.query.page
         MongoClient.connect(url, async function(err, db) {
@@ -56,7 +60,7 @@ router.get('/addReportsListData', async function (req, res) {
             var dbo = db.db("Reports");
             let totalCounts = await dbo.collection("reports").find(query).count()
             let data = await dbo.collection("reports").find(query).limit(20).skip(page*20).sort({"Timestamp": 1}).toArray()
-            res.json({result:data,totalCounts})
+            res.json({status:true,result:data,totalCounts})
           });
     }catch(e)  {
         return res.send(JSON.stringify(e))
