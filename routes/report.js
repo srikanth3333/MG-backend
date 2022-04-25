@@ -330,7 +330,7 @@ router.get('/getOnboardDetails',  async (req, res) => {
             query = {...query, ['RGS ID']: {$regex: req.query.rgsId, $options:'i'}}
         }
         if(req.query.currentStatus) {
-            query = {...query, ['Current Status']: {$regex: req.query.currentStatus, $options:'i'}} 
+            query = {...query, ['Current Status']: req.query.currentStatus} 
         }
         if(req.query.tentativeDOJ) {
             query = {...query, ['Tentative DOJ']: parseInt(req.query.tentativeDOJ)}
