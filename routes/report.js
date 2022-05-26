@@ -3,23 +3,23 @@ const MeterData = require('../models/MeterData')
 const Report = require('../models/Report')
 const router = express.Router();
 const multer  = require('multer')
-var ObjectID = require('mongodb').ObjectID;
 const sgMail = require('@sendgrid/mail')
-sgMail.setApiKey("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")
-
+sgMail.setApiKey(process.env.SENDGRID_API_KEY)
+var nodemailer = require('nodemailer');
 var MongoClient = require('mongodb').MongoClient;
+const render = require('xlsx')
+
 const url = "mongodb+srv://srikanth:zxcvbnm321A@cluster0.kvdaf.mongodb.net/Reports?retryWrites=true&w=majority"
 var storage = multer.diskStorage({
     destination: function (req, file, cb) {
       cb(null, 'uploads/')
     },
     filename: function (req, file, cb) {
-      cb(null, Date.now() + '.pdf')
+      cb(null, Date.now() + '.xlsx')
     }
 })
-  
-var upload = multer({ storage: storage });
 
+var upload = multer({ storage: storage });
 
 router.get('/addReportsListData', async function (req, res) {
     try{
@@ -241,7 +241,7 @@ router.post('/addReport', async function (req, res) {
                 "Vendor Name" : req.body['Vendor Name'],
                 "Candiate Name" : req.body['Candiate Name'],
                 "Pan/Aadhar No" : req.body['Vendor Name'],
-                "Contact No." : req.body['Pan/Aadhar No'],
+                "Contact No" : req.body['Contact No'],
                 "Skill Set" : req.body['Skill Set'],
                 "Total Exp" : req.body['Total Exp'],
                 "Rel Exp" : req.body['Rel Exp'],
@@ -412,21 +412,48 @@ router.get('/getOnboardOptions',  async (req, res) => {
 })
 
 const sendMail = (email,res,otp) => {
-    const msg = {
+    // console.log(process.env.SEND_GRID_API)
+    // const msg = {
+    //     to: 'srikanth939196@gmail.com',
+    //     from: 'srikanth.s@mind-graph.com', 
+    //     subject: 'OTP',
+    //     text: `your otp is ${'1234'}`,
+    //     // html: '<strong>and easy to do anywhere, even with Node.js</strong>',
+    //   }
+    //   sgMail
+    //     .send(msg)
+    //     .then(() => {
+    //         console.log(msg)
+    //         return res.json({status:true,msg:"Email sent"})
+    //     })
+    //     .catch((error) => {
+    //         console.log(error)
+    //         return res.json({status:false,msg:"Something went wrong try again later"})
+    //     })
+    var transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: 'nonen3021@gmail.com',
+          pass: 'zxcvbnm321A@'
+        }
+      });
+      
+      var mailOptions = {
+        from: 'nonen3021@gmail.com',
         to: email,
-        from: 'srikanth.s@mind-graph.com', 
         subject: 'OTP',
-        text: `your otp is ${otp}`,
-        // html: '<strong>and easy to do anywhere, even with Node.js</strong>',
-      }
-      sgMail
-        .send(msg)
-        .then(() => {
-            return res.json({status:true,msg:"Email sent"})
-        })
-        .catch((error) => {
-            return res.json({status:false,msg:"Something went wrong try again later"})
-        })
+        text: `your otp is ${otp}`
+      };
+      
+      transporter.sendMail(mailOptions, function(error, info){
+        if (error) {
+          console.log(error);
+          return res.json({status:false,msg:"Something went wrong try again later"})
+        } else {
+          console.log('Email sent: ' + info.response);
+          return res.json({status:true,msg:"Email sent"})
+        }
+      });
 }
 
 router.get("/userLogin", async (req, res) => {
@@ -501,12 +528,186 @@ router.get('/verifyUser', async (req, res) => {
     });
 })
 
-// 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
+
+router.post("/uploadResumesExcel", upload.single('excel'), (req,res) => {
+    const file = render.readFile(`uploads/${req.file.filename}`)
+    let sheets = file.SheetNames;
+    sheets.map((item) => {
+        render.utils.sheet_to_json(file.Sheets[item]).map(async (value) => {
+            console.log(value)
+            MongoClient.connect(url, async function(err, db) {
+                if (err) throw err;
+                var dbo = db.db("Reports");
+                await dbo.collection("reports").insertOne({
+                    "Timestamp" : new Date(Math.round((value.Timestamp - 25569)*86400*1000)),
+                    "Email Address" : value['Email Address'],
+                    "Vendor Name" : value['Vendor Name'],
+                    "Candiate Name" : value['Candiate Name'],
+                    "Pan/Aadhar No" : value['Aadhar No'],
+                    "Contact No" : value['Contact No'],
+                    "Skill Set" : value['Skill Set'],
+                    "Total Exp" : parseInt(value['Total Exp']),
+                    "Rel Exp" : parseInt(value['Rel Exp']),
+                    "Current Company" : value['Current Company'],
+                    "Current Work Location" : value['Current Work Location'],
+                    "Preferred Work Location" : value['Preferred Work Location'],
+                    "Email ID" : value['Email ID'],
+                    "Notice Period" : parseInt(value['Notice Period']),
+                    "GAP (If Any)" : parseInt(value['GAP (If Any)']),
+                    "Telephonic Round -Date" : new Date(Math.round((value['Telephonic Round -Date'] - 25569)*86400*1000)),
+                    "Telephonic Round -Time" : new Date(Math.round((value['Telephonic Round -Time'] - 25569)*86400*1000)),
+                    "Category" : value['Category'],
+                    "Bill RATE" : value['Bill RATE'],
+                    "Resume" : value['Resume'],
+                    "RMG SPOC NAME" : value['RMG SPOC NAME'],
+                    "RMG Email ID" : value['RMG Email ID'],
+                    "For the Date of submission" : new Date(Math.round((value['For the Date of submission'] - 25569)*86400*1000))
+                })
+            });
+            
+        })
+    })
+    
+    return res.send({status:true,msg:'success'})
+})
+
+
+router.post("/uploadOnboardExcel", upload.single('excel'), (req,res) => {
+    const file = render.readFile(`uploads/${req.file.filename}`)
+    let sheets = file.SheetNames;
+    sheets.map((item) => {
+        render.utils.sheet_to_json(file.Sheets[item]).map(async (value) => {
+            console.log(value["Candidate Name"])
+            MongoClient.connect(url, async function(err, db) {
+                if (err) throw err;
+                var dbo = db.db("Reports");
+                await dbo.collection("onboardDetails").insertOne({
+                    "Candidate Name" : value["Candidate Name"],
+                    "Contact No" : value["Contact No"],
+                    "Skill Set" : value["Skill Set"],
+                    "RGS ID" : value["RGS ID"],
+                    "Tentative DOJ" : new Date(Math.round((value["Tentative DOJ"] - 25569)*86400*1000)),
+                    "Current Status" : value["Current Status"],
+                    "EMP ID" : value["EMP ID"],
+                    "DOJ" : new Date(Math.round((value["DOJ"] - 25569)*86400*1000)),
+                    "Date of source" : new Date(Math.round((value["Date of source"] - 25569)*86400*1000)),
+                    "Date of selection" : new Date(Math.round((value["Date of selection"] - 25569)*86400*1000)),
+                    "RMG" : value["RMG"],
+                    "TCS Account/ISU" : value["TCS Account/ISU"],
+                    "RMG Location" : value["RMG Location"],
+                    "Requirement Email from GENERAL/Known Manager" : value["Requirement Email from GENERAL/Known Manager"],
+                    "TCS RATE CARD" : value["TCS RATE CARD"],
+                    "Pay RATE" : value["Pay RATE"],
+                    "TCS APPROVED RATE CARD" : value["TCS APPROVED RATE CARD"],
+                    "Margin" : value["Margin"],
+                    "BGC Cleared Date" : new Date(Math.round((value["BGC Cleared Date"] - 25569)*86400*1000)),
+                    "BGC SPOC" : value["BGC SPOC"],
+                    "Location of On-board" : value["Location of On-board"],
+                    "Recruiter Name" : value["Recruiter Name"],
+                    "Team Lead Name" : value["Team Lead Name"],
+                    "TOI-Spoc" : value["TOI-Spoc"]
+                })
+            });
+            
+        })
+    })
+    
+    
+    return res.send({status:true,msg:'success'})
+})
 
 
 
 
+router.get("/testMail", (req,res) => {
+    var transporter = nodemailer.createTransport({
+        host: "smtp.zoho.com",
+        port: 443,
+        secure: true,      
+        auth: {
+          user: 'support@cominds.co',
+          pass: 'sarath@123'
+        }
+      });
+      
+      var mailOptions = {
+        from: 'SearchPortal-Support@cominds.co',
+        to: "srikanth939196@gmail.com",
+        subject: '!!!Greetings from TECHORBIT SOFT SYSTEMS PVT LTD !!!- Documents checklist',
+        text: `
+            Dear  Mamidisetti Hari,
 
-
+            !!!Congratulations!!!
+            
+            We are happy to inform you that you have been selected in our organization,  please find the below-mentioned documents which are to be scanned & submitted to us to initiate the background Verification.
+            Education:
+            
+                1. 10th certificate.
+            
+                2. 12th Certificate.
+            
+                3. Graduation, Post-graduation (All Semester Memos/Consolidated Memo, Final Convocation certificate)
+            
+            Career:
+            
+                    1. Offer letters from all the Companies
+            
+                    2. Experience and Relieving letter
+            
+            Proofs:
+            
+                    1. Current Address Proof (Electricity bill / Rental Agreement on your name)
+            
+                    2. Permanent Address proof
+            
+                    3. Aadhar card
+            
+                    4. PAN Card
+            
+                    5. Passport
+            
+            BGC Form should be filled manually ( Attached)
+            
+            Note: All documents are to be submitted in PDF format only.*
+            
+            
+            Please feel free to reach me if required. 
+            Thanks & Best Regards.
+            
+            Deepthi - HR Team Lead
+            
+            Email: hr-in1@techorbit.com  | Ph: +91 8341581968
+            
+            Techorbit Soft Systems Private Limited,
+            
+            D.No: 1-95/5/4/154/280 | 4th Floor | Sai Nitish Techno Space | Patrikanagar |
+            
+            Beside Max cure Hospitals | Hi-tech City |Hyderabad 500081 | Telangana, India Voice: 040-48556767
+            
+            www.techorbit.com`,
+        attachments: [{
+            filename: 'TCSBGCform.pdf',
+            path: 'C:/Users/Srikanth/Desktop/MG/test/backend/uploads/TCSBGCform.pdf',
+            contentType: 'application/pdf'
+        },
+        {
+            filename: 'SampleBGCForm.pdf',
+            path: 'C:/Users/Srikanth/Desktop/MG/test/backend/uploads/SampleBGCForm.pdf',
+            contentType: 'application/pdf'
+        }
+        ],
+      }
+      
+      
+      transporter.sendMail(mailOptions, function(error, info){
+        if (error) {
+          console.log(error);
+          return res.json({status:false,msg:"Something went wrong try again later"})
+        } else {
+          console.log('Email sent: ' + info.response);
+          return res.json({status:true,msg:"Email sent"})
+        }
+      });
+})
 
 module.exports = router;
