@@ -7,6 +7,9 @@ const ProfileSchema = mongoose.Schema({
     role: {
         type: String,
     },
+    otp: {
+        type: Number,
+    },
     mobileNo: {
         type: String,
     },

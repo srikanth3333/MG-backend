@@ -4,12 +4,14 @@ const Report = require('../models/Report')
 const router = express.Router();
 const multer  = require('multer')
 const sgMail = require('@sendgrid/mail')
-sgMail.setApiKey(process.env.SENDGRID_API_KEY)
+sgMail.setApiKey("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")
 var nodemailer = require('nodemailer');
 var MongoClient = require('mongodb').MongoClient;
 const render = require('xlsx')
+const  ObjectID = require('mongodb').ObjectId;
 
-const url = "mongodb+srv://srikanth:zxcvbnm321A@cluster0.kvdaf.mongodb.net/Reports?retryWrites=true&w=majority"
+
+const url = "mongodb://127.0.0.1:27017"
 var storage = multer.diskStorage({
     destination: function (req, file, cb) {
       cb(null, 'uploads/')
@@ -38,30 +40,80 @@ router.get('/addReportsListData', async function (req, res) {
             query = {...query, ['Notice Period']: {$regex: req.query.noticePeriod, $options:'i'}}
         }
         if(req.query.preWorkLoc) {
-            query = {...query, ['Preferred Work Location']: {$regex: req.query.preWorkLoc, $options:'i'}}
+            query = {...query, ['Current Work Location']: {$regex: req.query.preWorkLoc, $options:'i'}}
+        }
+        if(req.query.name) {
+            query = {...query, ['Candiate Name']: {$regex: req.query.name, $options:'i'}}
         }
         if(req.query.category) {
             query = {...query, ['Category']: {$regex: req.query.category, $options:'i'}}
         }
-        if (req.query.startDate && req.query.endDate && !isNaN(new Date(req.query.startDate)) && !isNaN(new Date(req.query.endDate))) {
+
+        if(req.query.contactNo) {
+            query = {...query, ['Contact No']: {$regex: req.query.contactNo, $options:'i'}}
+        }    
+
+        if (req.query.startDate &&!isNaN(new Date(req.query.startDate))) {
             startDate = new Date(req.query.startDate);
+            query["Timestamp"] = {$gte: startDate};
+        }
+        
+        if (req.query.endDate && !isNaN(new Date(req.query.endDate))) {
             endDate = new Date(req.query.endDate);
-            query["Timestamp"] = {$gte: startDate, $lte: endDate};
+            query["Timestamp"] = {$lte: endDate};
         }
 
         if(parseInt(req.query.experienceTotal) < parseInt(req.query.experienceRel)) {
-                return res.json({status:false,msg:"Total"})
+            return res.json({status:false,msg:"Relevant experince cannot be greater than total experience"})
         }
 
-        console.log(query);
+        
+
+        if(req.query.email == "undefined" || req.query.date == "undefined") {
+            console.log(req.query.email);
+        }else {
+            console.log('query')
+            console.log(query)
+            MongoClient.connect(url, async function(err, db) {
+                if (err) throw err;
+                var dbo = db.db("Reports");
+                await dbo.collection("logs").insertOne({
+                    email:req.query.email,
+                    timestamp:req.query.date,
+                    data:query
+                })
+            });
+        }
+        
         let page = req.query.page
         MongoClient.connect(url, async function(err, db) {
             if (err) throw err;
             var dbo = db.db("Reports");
             let totalCounts = await dbo.collection("reports").find(query).count()
-            let data = await dbo.collection("reports").find(query).limit(20).skip(page*20).sort({"Timestamp": 1}).toArray()
+            let data = await dbo.collection("reports").find(query).limit(20).skip(page*20).sort({"Timestamp": -1}).toArray()
             res.json({status:true,result:data,totalCounts})
-          });
+        });
+    }catch(e)  {
+        return res.send(JSON.stringify(e))
+    }
+})
+
+
+
+router.get('/logData', async function (req, res) {
+    try{
+        
+        let query = {}
+        
+        
+        let page = req.query.page
+        MongoClient.connect(url, async function(err, db) {
+            if (err) throw err;
+            var dbo = db.db("Reports");
+            let totalCounts = await dbo.collection("logs").find(query).count()
+            let data = await dbo.collection("logs").find(query).limit(20).skip(page*20).toArray()
+            res.json({status:true,result:data,totalCounts})
+        });
     }catch(e)  {
         return res.send(JSON.stringify(e))
     }
@@ -124,6 +176,56 @@ router.get('/groupList', async function (req, res) {
                 {$limit: 20}
             ]).toArray()
             res.json({result:data,totalCounts})
+          });
+    }catch(e)  {
+        return res.send(JSON.stringify(e))
+    }
+})
+
+
+router.get('/mgResumesList',  async (req, res) => {
+    try{
+        let query = {}
+        if(req.query.skillSet) {
+            query = {...query, ['Position']: {$regex: req.query.skillSet, $options:'i'}}
+        }
+        if(req.query.experienceRel) {
+            query = {...query, ['Relevant Experience']: {$gte: parseInt(req.query.experienceRel)}}
+        }
+        if(req.query.experienceTotal) {
+            query = {...query, ['Total Experience']: {$gte: parseInt(req.query.experienceTotal)}}
+        }
+       
+        if(req.query.preWorkLoc) {
+            query = {...query, ['Candidate Location']: {$regex: req.query.preWorkLoc, $options:'i'}}
+        }
+        if(req.query.name) {
+            query = {...query, ['Candidate Name']: {$regex: req.query.name, $options:'i'}}
+        }
+        
+
+        if (req.query.startDate &&!isNaN(new Date(req.query.startDate))) {
+            startDate = new Date(req.query.startDate);
+            query["Date"] = {$gte: startDate};
+        }
+        
+        if (req.query.endDate && !isNaN(new Date(req.query.endDate))) {
+            endDate = new Date(req.query.endDate);
+            query["Date"] = {$lte: endDate};
+        }
+
+        if(parseInt(req.query.experienceTotal) < parseInt(req.query.experienceRel)) {
+            return res.json({status:false,msg:"Relevant experince cannot be greater than total experience"})
+        }
+
+        console.log(query);
+        let page = req.query.page
+        MongoClient.connect(url, async function(err, db) {
+            if (err) throw err;
+            var dbo = db.db("Reports");
+            let totalCounts = await dbo.collection("mgResumes").find(query).count()
+            let data = await dbo.collection("mgResumes").find(query).limit(20).skip(page*20).sort({"Timestamp": -1}).toArray()
+            res.json({status:true,result:data,totalCounts})
           });
     }catch(e)  {
         return res.send(JSON.stringify(e))
@@ -232,6 +334,7 @@ router.get('/employeeGraph',  async (req, res) => {
 
 router.post('/addReport', async function (req, res) {
     try{
+        console.log(req.body['Email Address'])
         MongoClient.connect(url, async function(err, db) {
             if (err) throw err;
             var dbo = db.db("Reports");
@@ -240,7 +343,7 @@ router.post('/addReport', async function (req, res) {
                 "Email Address" : req.body['Email Address'],
                 "Vendor Name" : req.body['Vendor Name'],
                 "Candiate Name" : req.body['Candiate Name'],
-                "Pan/Aadhar No" : req.body['Vendor Name'],
+                "Pan/Aadhar No" : req.body['Pan/Aadhar No'],
                 "Contact No" : req.body['Contact No'],
                 "Skill Set" : req.body['Skill Set'],
                 "Total Exp" : req.body['Total Exp'],
@@ -275,30 +378,38 @@ router.get('/updateTime', async function (req, res) {
         MongoClient.connect(url, async function(err, db) {
             if (err) throw err;
             var dbo = db.db("Reports");
-            await dbo.collection("onboardDetails").find({}).toArray((err,result) => {
+            await dbo.collection("mgResumes").find({}).toArray((err,result) => {
                 if (err) throw err;
                 let i = 0;
                 // For Date Update
-                result.map(async (item) => {
-                    // console.log(item)
-                    // if(!item["Tentative DOJ"]) {
-                    //     await dbo.collection("onboardDetails").updateOne({"_id":ObjectID(item._id)}, {$set: {["Tentative DOJ"]:''}})
-                    //     // res.send(item)
-                    // }else {
-                    //     await dbo.collection("onboardDetails").updateOne({"_id":ObjectID(item._id)}, {$set: {["Tentative DOJ"]: new Date(item["Tentative DOJ"])}})
-                    //     i += 1
-                    //     console.log(item._id)
-                    //     console.log(i)    
-                    // }
-                    
-                })
-                // For Int Parse
                 // result.map(async (item) => {
-                //     await dbo.collection("onboardDetails").updateOne({"_id":ObjectID(item._id)}, {$set: {["Total Exp"]: parseInt(item["Total Exp"])}})
-                //     i += 1
-                //     console.log(item._id)
-                //     console.log(i)
+                //     // console.log(item)
+                //     if(!item["Date"]) {
+                //         await dbo.collection("mgResumes").updateOne({"_id":ObjectID(item._id)}, {$set: {["Date"]:''}})
+                //         // res.send(item)
+                //     } else {
+                //         await dbo.collection("mgResumes").updateOne({"_id":ObjectID(item._id)}, {$set: {["Date"]: new Date(item["Date"])}})
+                //         // console.log(new Date(item["Date"]))
+                //         i += 1
+                //         console.log(item._id)
+                //         console.log(i) 
+                //     }  
+                    
                 // })
+            //     [
+            //    map( async (item) => {
+            //         console.log(item["Contact No"])
+            //         await dbo.collection("reports").updateOne({"Contact No":item["Contact No"]}, {$set: {"selection":'True'}})
+            //         i += 1
+            //         console.log(i)
+            //     })
+                // For Int Parse
+                result.map(async (item) => {
+                    await dbo.collection("mgResumes").updateOne({"_id":ObjectID(item._id)}, {$set: {["Total Experience"]: parseInt(item["Total Experience"])}})
+                    i += 1
+                    console.log(item._id)
+                    console.log(i)
+                })
 
             })
            
@@ -411,13 +522,13 @@ router.get('/getOnboardOptions',  async (req, res) => {
     }
 })
 
-const sendMail = (email,res,otp) => {
+const sendMail = async (email,res,otp) => {
     // console.log(process.env.SEND_GRID_API)
     // const msg = {
     //     to: 'srikanth939196@gmail.com',
-    //     from: 'srikanth.s@mind-graph.com', 
+    //     from: 'srikanth939196@gmail.com', 
     //     subject: 'OTP',
-    //     text: `your otp is ${'1234'}`,
+    //     text: `your otp is ${otp}`,
     //     // html: '<strong>and easy to do anywhere, even with Node.js</strong>',
     //   }
     //   sgMail
@@ -432,9 +543,12 @@ const sendMail = (email,res,otp) => {
     //     })
     var transporter = nodemailer.createTransport({
         service: 'gmail',
-        auth: {
+        // port: 465,
+        // secure: true,
+        auth: { 
           user: 'nonen3021@gmail.com',
-          pass: 'zxcvbnm321A@'
+          pass: 'rknfxvreudnwpklr'
+        //   pass: '9391962924@srikanthA'
         }
       });
       
@@ -471,7 +585,7 @@ router.get("/userLogin", async (req, res) => {
                 // res.send(result)
                 sendMail(req.query.email,res,otp)    
             })
-            .catch(err => res.json({status:false,msg:err}))
+            .catch(err => res.json({status:false,msg:JSON.stringify(err)}))
             
         });
     }catch(e){
@@ -554,14 +668,14 @@ router.post("/uploadResumesExcel", upload.single('excel'), (req,res) => {
                     "Email ID" : value['Email ID'],
                     "Notice Period" : parseInt(value['Notice Period']),
                     "GAP (If Any)" : parseInt(value['GAP (If Any)']),
-                    "Telephonic Round -Date" : new Date(Math.round((value['Telephonic Round -Date'] - 25569)*86400*1000)),
-                    "Telephonic Round -Time" : new Date(Math.round((value['Telephonic Round -Time'] - 25569)*86400*1000)),
+                    "Telephonic Round -Date" : new Date(Math.round((value["Telephonic Round -Date"] - 25569)*86400*1000)),
+                    "Telephonic Round -Time" : value["Telephonic Round -Time"],
                     "Category" : value['Category'],
                     "Bill RATE" : value['Bill RATE'],
                     "Resume" : value['Resume'],
                     "RMG SPOC NAME" : value['RMG SPOC NAME'],
                     "RMG Email ID" : value['RMG Email ID'],
-                    "For the Date of submission" : new Date(Math.round((value['For the Date of submission'] - 25569)*86400*1000))
+                    // "For the Date of submission" : new Date(Math.round((value['For the Date of submission'] - 25569)*86400*1000))
                 })
             });
             
@@ -569,6 +683,34 @@ router.post("/uploadResumesExcel", upload.single('excel'), (req,res) => {
     })
     
     return res.send({status:true,msg:'success'})
+})
+
+
+
+router.post("/getCounts", upload.single('excel'), (req,res) => {
+    Promise.resolve().then(async ()=> {
+        let email = req.query.email
+        MongoClient.connect(url, async function(err, db) {
+            if (err) throw err;
+            var dbo = db.db("Reports");
+            let user = await dbo.collection("reports").aggregate(
+                [
+                    {$query: query},
+                    // {$graou: _id:"$"}
+                ]
+            )
+            if(!user) {
+                return res.json({status:false,msg:"Not a regitered user"})
+            }
+            return res.json({status:true,msg:'success'})
+        });
+    }).catch(err => {
+        console.log(err);
+        res.status(500).json({
+            message: "Failed",
+            error: JSON.stringify(err)
+        });
+    });
 })
 
 
@@ -685,7 +827,7 @@ router.get("/testMail", (req,res) => {
             Beside Max cure Hospitals | Hi-tech City |Hyderabad 500081 | Telangana, India Voice: 040-48556767
             
             www.techorbit.com`,
-        attachments: [{
+            attachments: [{
             filename: 'TCSBGCform.pdf',
             path: 'C:/Users/Srikanth/Desktop/MG/test/backend/uploads/TCSBGCform.pdf',
             contentType: 'application/pdf'
@@ -708,6 +850,111 @@ router.get("/testMail", (req,res) => {
           return res.json({status:true,msg:"Email sent"})
         }
       });
+})
+
+
+
+
+router.post("/deleteResume", upload.single('excel'), (req,res) => {
+    Promise.resolve().then(async ()=> {
+        let id = req.query.id
+        MongoClient.connect(url, async function(err, db) {
+            if (err) throw err;
+            var dbo = db.db("Reports");
+            await dbo.collection("reports").deleteOne({_id:ObjectID(id)})
+            return res.json({status:true,msg:'success'})
+        });
+    }).catch(err => {
+        console.log(err);
+        res.status(500).json({
+            message: "Failed",
+            error: JSON.stringify(err)
+        });
+    });
+})
+
+
+
+router.post("/assignUser", upload.single('excel'), (req,res) => {
+    Promise.resolve().then(async ()=> {
+        MongoClient.connect(url, async function(err, db) {
+            if (err) throw err;
+            var dbo = db.db("Reports");
+            await dbo.collection("tasks").insertOne({
+                email:req.body.email,
+                profiles:req.body.profiles,
+                assignedCount:req.body.assignedCount,
+                timestamp: new Date(),
+            })
+            .then((result) => {
+                res.send({status:true,message:"Added Successfully"})
+            })
+            .catch(err => console.log(err))
+        });
+    }).catch(err => {
+        console.log(err);
+        res.status(500).json({
+            message: "Failed",
+            error: JSON.stringify(err)
+        });
+    });
+})
+
+
+
+
+router.get("/getUser", upload.single('excel'), (req,res) => {
+    Promise.resolve().then(async ()=> {
+        MongoClient.connect(url, async function(err, db) {
+            if (err) throw err;
+            var dbo = db.db("Reports");
+            let data = await dbo.collection("reports").aggregate(
+                [
+                    {$group:{_id:`$${['Email Address']}`}}
+                ]
+            ).toArray()
+            return res.send(data)
+        });
+    }).catch(err => {
+        console.log(err);
+        res.status(500).json({
+            message: "Failed",
+            error: JSON.stringify(err)
+        });
+    });
+})
+
+
+router.post("/mgUploadResumesExcel", upload.single('excel'), (req,res) => {
+    const file = render.readFile(`uploads/${req.file.filename}`)
+    let sheets = file.SheetNames;
+    sheets.map((item) => {
+        render.utils.sheet_to_json(file.Sheets[item]).map(async (value) => {
+            console.log(value)
+            MongoClient.connect(url, async function(err, db) {
+                if (err) throw err;
+                var dbo = db.db("Reports");
+                await dbo.collection("mgResumes").insertOne({
+                    "Status" : value['Status'],
+                    "Date" : new Date(Math.round((value["Date"] - 25569)*86400*1000)),
+                    "Candidate Name" : value["Candidate Name"],
+                    "Position" : value['Position'],
+                    "Email ID" : value['Email ID'],
+                    "Contact Number" : value['Contact Number'],
+                    "Total Experience" : value['Total Experience'],
+                    "Relevant Experience" : value['Relevant Experience'],
+                    "Current Salary" : value['Current Salary'],
+                    "Expected Salary" : value['Expected Salary'],
+                    "Notice Period" : value['Notice Period'],
+                    "Candidate Location" : value['Candidate Location'],
+                    "Naukri Link" : value['Naukri Link'],
+                })
+            });
+            
+        })
+    })
+    
+    return res.send({status:true,msg:'success'})
 })
 
 module.exports = router;
